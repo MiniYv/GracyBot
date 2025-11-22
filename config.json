@@ -1,0 +1,26 @@
+{
+  "napcat_http_url": "http://localhost:3000",
+  "robot_qq": "1972693082",
+  "callback_port": 3002,
+  "master_qq": "192004908",
+  "bot_version": "v1.8.5",
+  "log_encoding": "utf-8",
+  "log_level": "INFO",
+  "debug_mode": false,
+  "openai_api_key": "",
+  "openai_model": "deepseek-chat",
+  "openai_api_base": "https://api.deepseek.com/v1",
+  "openai_default_character": "你是GracyBot的AI助手，性格友好、回答简洁，帮助用户解决问题。",
+  "auto_replies": {
+    "你好": "哈喽～ 我是 GracyBot，有什么可以帮你呀？",
+    "在吗": "在呢在呢～ 随时在线为你服务！",
+    "谢谢": "不客气呀～ 能帮到你我也很开心！",
+    "再见": "拜拜～ 下次见啦，祝你生活愉快！",
+    "早上好": "早上好呀～ 新的一天也要元气满满哦！",
+    "晚上好": "晚上好～ 记得早点休息，不要熬夜呀！",
+    "吃了吗": "哈哈，已经吃过啦～ 你也要按时吃饭呀！",
+    "天气怎么样": "抱歉呀，我暂时没法查询天气，记得关注天气预报哦～",
+    "你是谁": "我是 GracyBot，一款基于 Napcat 的 QQ 机器人，很高兴认识你！",
+    "加油": "谢谢鼓励～ 你也超棒的，一起加油呀！"
+  }
+}

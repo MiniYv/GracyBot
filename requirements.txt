@@ -1,0 +1,4 @@
+# GracyBot（纯HTTP版）依赖清单
+requests==2.31.0
+flask==2.3.3
+psutil==5.9.6

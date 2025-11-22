@@ -1,0 +1,52 @@
+# GracyBot 基本调试命令
+
+## 系统服务管理
+# 启动机器人
+systemctl start bot
+
+# 重启机器人（更新内容后使用）
+systemctl restart bot
+
+# 停止机器人
+systemctl stop bot
+
+# 查看机器人服务状态
+systemctl status bot
+
+## 日志查看
+# 查看实时日志（根目录下的bot.log）
+tail -f /root/GracyBot/bot.log
+
+# 查看最近500行日志
+tail -n 500 /root/GracyBot/bot.log
+
+# 查看包含错误的日志
+grep -i "error\|exception\|fail" /root/GracyBot/bot.log
+
+## 快速检查
+# 查看Python进程
+ps aux | grep python
+
+# 查看端口占用
+netstat -tlnp | grep 3002
+
+# 检查系统状态
+df -h
+free -h
+
+## 常见问题排查
+# 重启机器人并实时查看日志
+systemctl restart bot && tail -f /root/GracyBot/bot.log
+
+# 查看错误日志文件
+cat /root/GracyBot/logs/gracybot_error.log
+
+## MonitorPlugin测试命令
+# 使用curl模拟用户发送"系统状态"指令（私聊）
+curl -X POST -H "Content-Type: application/json" -d '{"post_type":"message","message_type":"private","user_id":"123456789","raw_message":"系统状态","sender":{"nickname":"测试用户"}}' http://localhost:3002/api/message/callback
+
+# 使用curl模拟用户发送"性能"指令（私聊）
+curl -X POST -H "Content-Type: application/json" -d '{"post_type":"message","message_type":"private","user_id":"123456789","raw_message":"性能","sender":{"nickname":"测试用户"}}' http://localhost:3002/api/message/callback
+
+# 使用curl模拟用户发送"监控"指令（群聊）
+curl -X POST -H "Content-Type: application/json" -d '{"post_type":"message","message_type":"group","group_id":"987654321","user_id":"123456789","raw_message":"监控","sender":{"nickname":"测试用户"}}' http://localhost:3002/api/message/callback
