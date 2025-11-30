@@ -16,6 +16,7 @@ from core.security import sanitize_log
 from core.plugin_manager import plugin_manager, PLUGIN_REGISTRY
 from core.security_manager import security_manager
 from core.monitor import monitor_manager
+from core.logger_manager import logger_manager
 
 
 def register_plugin(plugin_meta: Dict):
@@ -40,7 +41,21 @@ def callback_base():
             logger.warning(f"[安全防护] 输入数据验证失败，可能包含恶意内容")
             return jsonify({"retcode": 403, "msg": "输入内容不合法"}), 403
 
-        logger.info(sanitize_log(f"[回调基础] 收到消息：{json.dumps(data, ensure_ascii=False)[:100]}..."))
+        # 只传递必要的信息，避免日志过于冗长
+        simplified_context = {
+            'self_id': data.get('self_id'),
+            'user_id': data.get('user_id'),
+            'message_type': data.get('message_type'),
+            'raw_message': data.get('raw_message', ''),  # 不限制消息长度
+            'group_id': data.get('group_id'),
+            'group_name': data.get('group_name', '')
+        }
+        logger_manager.log_with_context(
+            logger,
+            'INFO',
+            "[回调基础] 收到消息",
+            context=simplified_context
+        )
 
         try:
             from plugins.XiaoYu_plugin.XiaoYu_plugin import FUNCTION_SWITCHES, send_welcome_msg
@@ -95,7 +110,7 @@ def callback_base():
                     logger.info(sanitize_log(
                         f"[戳一戳事件] 处理戳一戳事件（用户ID：{data.get('user_id')}，目标ID：{data.get('target_id')}）"))
                 except ImportError:
-                    logger.warning("[戳一戳事件] OpenAI插件未加载，戳一戳功能不可用")
+                    logger.warning("[戳一戳事件] OpenAI插件错误，戳一戳功能不可用")
                 except Exception as e:
                     logger.error(sanitize_log(f"[戳一戳事件] 处理失败：{str(e)}"))
             return jsonify({"retcode": 0})
@@ -168,6 +183,7 @@ def dispatch_plugin_cmd(parsed_data):
         target_id = parsed_data["target_id"]
         raw_msg = parsed_data["raw_msg"]
         is_at_bot = parsed_data["is_at_bot"]
+        nickname = parsed_data.get("nickname", "用户")
         handled = False
 
         # 记录消息审计日志
@@ -345,7 +361,11 @@ def dispatch_plugin_cmd(parsed_data):
 
                 # 根据规则决定是否调用自动回复
                 if is_auto_reply_match or is_private_direct_chat or is_group_at_reply:
-                    auto_reply = openai_auto_reply(raw_msg)
+                    # 确保nickname始终有值
+                    if not nickname:
+                        nickname = "用户"
+                    # 传递正确的user_id和nickname
+                    auto_reply = openai_auto_reply(raw_msg, sender_id, nickname)
                     if auto_reply:
                         if chat_type == "group":
                             send_http_msg(target_id, auto_reply, "group")
@@ -363,4 +383,4 @@ def dispatch_plugin_cmd(parsed_data):
         return jsonify({"retcode": 1, "msg": f"指令处理异常：{str(e)}"}), 500
 
 
-logger.info("✅ core/handler.py 加载完成，与bot.py/OpenAI_plugin.py完全适配，已新增/关于内置命令")
+logger.info("✅ core/handler.py 加载完成")
