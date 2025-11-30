@@ -211,7 +211,8 @@ def handle_openai_plugin(self_bot, bot, message, user_id, chat_type, permission,
                 char_name = parts[1]
                 if char_name in CHARACTER_SETTINGS:
                     CURRENT_CHARACTER = char_name
-                    clear_conversation(user_id)
+                    # 只清除当前用户的对话历史，确保人设切换生效
+                    CONVERSATION_HISTORY[user_id] = []
                     write_json(DATA_FILE, {
                         "CHARACTER_SETTINGS": CHARACTER_SETTINGS,
                         "CURRENT_CHARACTER": CURRENT_CHARACTER,
@@ -226,8 +227,15 @@ def handle_openai_plugin(self_bot, bot, message, user_id, chat_type, permission,
             return True
         
         elif raw_msg == "/清除记忆":
-            clear_conversation(user_id)
-            bot(target_id, "✅ 已清空当前用户对话历史记忆", chat_type)
+            # 清除所有用户的对话历史
+            CONVERSATION_HISTORY.clear()
+            write_json(DATA_FILE, {
+                "CHARACTER_SETTINGS": CHARACTER_SETTINGS,
+                "CURRENT_CHARACTER": CURRENT_CHARACTER,
+                "CONVERSATION_HISTORY": CONVERSATION_HISTORY,
+                "MAX_HISTORY_COUNT": MAX_HISTORY_COUNT
+            })
+            bot(target_id, "✅ 已清空所有用户对话历史记忆", chat_type)
             return True
         
         # 英文版人设管理指令（映射到中文功能）
@@ -255,7 +263,8 @@ def handle_openai_plugin(self_bot, bot, message, user_id, chat_type, permission,
                 char_name = parts[1]
                 if char_name in CHARACTER_SETTINGS:
                     CURRENT_CHARACTER = char_name
-                    clear_conversation(user_id)
+                    # 只清除当前用户的对话历史，确保人设切换生效
+                    CONVERSATION_HISTORY[user_id] = []
                     write_json(DATA_FILE, {
                         "CHARACTER_SETTINGS": CHARACTER_SETTINGS,
                         "CURRENT_CHARACTER": CURRENT_CHARACTER,
@@ -338,25 +347,29 @@ def handle_openai_plugin(self_bot, bot, message, user_id, chat_type, permission,
 
 # API调用函数
 def call_openai_api(message: str, user_id: str, nickname: str) -> str:
-    global CURRENT_CHARACTER, CHARACTER_SETTINGS
-    
     if not OPENAI_CONFIG["api_key"]:
         return "❌ 未配置OpenAI API密钥，请主人执行/设置OpenAI命令完成配置"
     
-    # 确保使用最新配置
+    # 使用和handle_openai_plugin完全相同的逻辑
+    global CURRENT_CHARACTER, CHARACTER_SETTINGS, CONVERSATION_HISTORY
     loaded_data = read_json(DATA_FILE)
     if loaded_data:
         CURRENT_CHARACTER = loaded_data.get("CURRENT_CHARACTER", CURRENT_CHARACTER)
         CHARACTER_SETTINGS = loaded_data.get("CHARACTER_SETTINGS", CHARACTER_SETTINGS)
+        CONVERSATION_HISTORY = loaded_data.get("CONVERSATION_HISTORY", CONVERSATION_HISTORY)
     
-    history = get_user_conversation(user_id)
+    # 使用全局变量
+    current_character = CURRENT_CHARACTER
+    character_settings = CHARACTER_SETTINGS
+    history = CONVERSATION_HISTORY.get(user_id, [])
     
     # 确保当前人设存在
-    if CURRENT_CHARACTER not in CHARACTER_SETTINGS:
-        CURRENT_CHARACTER = "默认人设"
-        print(f"⚠️ 当前人设{CURRENT_CHARACTER}不存在，已切换到默认人设")
+    if current_character not in character_settings:
+        current_character = "默认人设"
+        print(f"⚠️ 当前人设{current_character}不存在，已切换到默认人设")
     
-    system_prompt = f"{CHARACTER_SETTINGS[CURRENT_CHARACTER]}\n注意：用户昵称是「{nickname}」，需尽可能自然融入回复，回答保持严谨。"
+    # 极强化的系统提示，强制使用当前人设
+    system_prompt = f"【当前人设：{current_character}】\n\n{character_settings[current_character]}\n\n！！！警告：你必须完全且严格地扮演【{current_character}】这个角色，无论之前的对话历史如何，都要使用该角色的性格、语气和说话方式。绝对不能使用其他角色的语气或风格。忘记之前的一切，只专注于当前人设。\n\n注意：用户昵称是「{nickname}」。"
     
     messages = [{"role": "system", "content": system_prompt}]
     messages.extend(history)
@@ -369,7 +382,7 @@ def call_openai_api(message: str, user_id: str, nickname: str) -> str:
     data = {
         "model": OPENAI_CONFIG["model"],
         "messages": messages,
-        "temperature": 0.3,
+        "temperature": 0.1,  # 降低随机性，更严格按照系统提示
         "timeout": 30
     }
     
@@ -397,20 +410,14 @@ def call_openai_api(message: str, user_id: str, nickname: str) -> str:
         return f"⚠️ AI回复失败：{str(e)[:30]}"
 
 # 自动回复函数
-def handle_auto_reply(msg: str) -> str:
+def handle_auto_reply(msg: str, user_id: str = "auto_reply", nickname: str = "用户") -> str:
     from core.config import AUTO_REPLIES
     # 优先使用自动回复配置
     if msg in AUTO_REPLIES:
         return AUTO_REPLIES[msg]
     # 只有在API密钥存在时才调用OpenAI
     if OPENAI_CONFIG["api_key"]:
-        # 确保使用最新的人设配置
-        global CURRENT_CHARACTER, CHARACTER_SETTINGS
-        loaded_data = read_json(DATA_FILE)
-        if loaded_data:
-            CURRENT_CHARACTER = loaded_data.get("CURRENT_CHARACTER", CURRENT_CHARACTER)
-            CHARACTER_SETTINGS = loaded_data.get("CHARACTER_SETTINGS", CHARACTER_SETTINGS)
-        return call_openai_api(msg, "auto_reply", "")
+        return call_openai_api(msg, user_id, nickname)
     # 没有API密钥时，返回空字符串
     return ""
 
